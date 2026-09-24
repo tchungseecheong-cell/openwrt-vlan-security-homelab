@@ -2,22 +2,23 @@
 
 ## Overview
 
-This project documents the design, implementation, and validation of a segmented networking and cybersecurity homelab using **OpenWrt** and a **NETGEAR GS308E managed switch**.
+This project documents the design, implementation, security configuration, and validation of a segmented networking and cybersecurity homelab built using **OpenWrt** and a **NETGEAR GS308E managed switch**.
 
-The lab was built to provide hands-on experience with:
+The environment was designed to provide hands-on experience with enterprise networking and cybersecurity concepts including:
 
 - VLAN segmentation
 - IEEE 802.1Q VLAN tagging
 - Trunk and access ports
+- IPv4 subnetting
 - DHCP
 - Routing
 - Firewall policies
 - Inter-VLAN isolation
 - Network troubleshooting
 - Cybersecurity testing
-- Forensic and malware-analysis network isolation
+- Digital forensics network isolation
 
-The environment separates management systems, servers, cybersecurity testing systems, IoT/test devices, and forensic/malware-analysis systems into dedicated VLANs.
+The network separates management systems, servers, cybersecurity testing systems, IoT/test devices, and forensic systems into dedicated security zones.
 
 ---
 
@@ -25,97 +26,103 @@ The environment separates management systems, servers, cybersecurity testing sys
 
 The primary objectives of this project were to:
 
-- Configure OpenWrt as the lab router and firewall
+- Deploy OpenWrt as the lab router and firewall
 - Configure a managed switch for VLAN segmentation
 - Implement IEEE 802.1Q VLAN tagging
 - Configure trunk and access ports
-- Configure dedicated DHCP scopes for each VLAN
-- Implement firewall zones and inter-VLAN isolation
+- Create independent IPv4 networks for each VLAN
+- Configure dedicated DHCP scopes
+- Implement OpenWrt firewall zones
+- Restrict unauthorized inter-VLAN communication
 - Provide Internet access only where required
-- Create dedicated server and cybersecurity testing networks
-- Build an isolated network for forensic and malware analysis
+- Create a dedicated cybersecurity testing network
+- Create an isolated forensic/malware-analysis network
 - Validate segmentation through connectivity testing
-- Integrate physical and virtualized lab systems
 - Document the implementation as a cybersecurity portfolio project
 
 ---
 
-## Hardware and Software
+# Network Topology
+
+The following diagram illustrates the physical and logical architecture of the homelab, including the OpenWrt router/firewall, managed switch, VLAN segmentation, port assignments, and network roles.
+
+![OpenWrt VLAN Security Homelab Network Topology](diagrams/network-topology.png)
+
+The high-level traffic path is:
+
+```text
+Internet
+   |
+   v
+Rogers XB7 Gateway
+10.0.0.1/24
+   |
+   | WAN
+   v
+ASUS RT-N56U
+OpenWrt Router / Firewall
+   |
+   | 802.1Q Trunk
+   | VLAN 10, 20, 30, 40, 50
+   v
+NETGEAR GS308E
+Managed Switch
+   |
+   +-- Port 2 ------ VLAN 10 ------ Management
+   |
+   +-- Port 3 ------ VLAN 20 ------ Servers
+   |
+   +-- Ports 4-6 --- VLAN 30 ------ CyberLab
+   |
+   +-- Port 7 ------ VLAN 40 ------ IoT/Test
+   |
+   +-- Port 8 ------ VLAN 50 ------ Forensics
+```
+
+---
+
+# Hardware and Software
 
 | Component | Purpose |
 |---|---|
 | ASUS RT-N56U | OpenWrt router/firewall |
-| OpenWrt 25.12.1 | Routing, DHCP, VLANs and firewall |
+| OpenWrt 25.12.1 | Routing, DHCP, VLAN and firewall services |
 | NETGEAR GS308E | Managed Layer 2 switch |
-| Rogers XB7 Gateway | Upstream Internet connection |
-| Raspberry Pi 4 | Linux/testing system |
+| Rogers XB7 Gateway | Upstream Internet gateway |
+| Raspberry Pi 4 | Linux and cybersecurity testing |
 | Windows Systems | Management and lab endpoints |
 | Forensic Laptop | Isolated forensic/malware-analysis system |
 | VMware ESXi | Virtualized lab infrastructure |
 
 ---
 
-# Network Architecture
-
-The lab uses the following general topology:
-
-```text
-                    Internet
-                       |
-                Rogers XB7 Gateway
-                  10.0.0.1/24
-                       |
-                       |
-                OpenWrt Router
-                 ASUS RT-N56U
-                       |
-                       |
-                  802.1Q Trunk
-                       |
-                       |
-                NETGEAR GS308E
-                Managed Switch
-                       |
-       +---------------+---------------+
-       |       |       |       |       |
-    VLAN10  VLAN20  VLAN30  VLAN40  VLAN50
-     Mgmt   Servers CyberLab IoT/Test Forensics
-```
-
-OpenWrt provides:
-
-- Layer 3 routing
-- DHCP services
-- DNS forwarding
-- Firewall enforcement
-- Inter-VLAN traffic control
-- Internet forwarding and NAT
-
-The NETGEAR GS308E provides Layer 2 VLAN segmentation, VLAN tagging, and access-port assignment.
-
----
-
 # VLAN Architecture
+
+Five VLANs were created to separate systems according to their purpose and security requirements.
 
 | VLAN | Name | Network | Gateway | Purpose |
 |---|---|---|---|---|
 | 10 | Management | 192.168.10.0/24 | 192.168.10.1 | Network administration |
 | 20 | Servers | 192.168.20.0/24 | 192.168.20.1 | Server infrastructure |
 | 30 | CyberLab | 192.168.30.0/24 | 192.168.30.1 | Cybersecurity testing |
-| 40 | IoT/Test | 192.168.40.0/24 | 192.168.40.1 | IoT and test devices |
-| 50 | Forensics | 192.168.50.0/24 | 192.168.50.1 | Forensics/malware analysis |
+| 40 | IoT/Test | 192.168.40.0/24 | 192.168.40.1 | IoT and test systems |
+| 50 | Forensics | 192.168.50.0/24 | 192.168.50.1 | Forensics and malware analysis |
 
-Each VLAN is assigned its own Layer 3 interface and DHCP scope on OpenWrt.
+Each VLAN operates as an independent Layer 3 network.
+
+OpenWrt acts as the default gateway and provides DHCP and firewall enforcement for each network.
 
 ---
 
-# Managed Switch Configuration
+# NETGEAR GS308E Configuration
 
-The NETGEAR GS308E was configured with a combination of **tagged trunk traffic** and **untagged access ports**.
+The NETGEAR GS308E provides Layer 2 VLAN segmentation.
 
-## Port Assignment
+The connection between the switch and OpenWrt operates as an **802.1Q trunk**, allowing multiple VLANs to travel across a single physical Ethernet connection.
 
-| Switch Port | VLAN | Mode | Purpose |
+## Switch Port Assignment
+
+| Port | VLAN | Mode | Purpose |
 |---|---|---|---|
 | Port 1 | VLAN 1, 10, 20, 30, 40, 50 | Trunk/Hybrid | OpenWrt uplink |
 | Port 2 | VLAN 10 | Access | Management |
@@ -126,11 +133,28 @@ The NETGEAR GS308E was configured with a combination of **tagged trunk traffic**
 | Port 7 | VLAN 40 | Access | IoT/Test |
 | Port 8 | VLAN 50 | Access | Forensics |
 
-Port 1 carries multiple VLANs between the managed switch and OpenWrt.
+Port 1 carries VLANs 10, 20, 30, 40, and 50 as tagged traffic.
 
-VLANs 10, 20, 30, 40, and 50 are carried as tagged traffic across the trunk.
+Access ports present traffic as untagged Ethernet to connected endpoints.
 
-Access ports present their assigned VLAN as untagged traffic to connected endpoints.
+---
+
+# PVID Configuration
+
+Each access port is assigned the PVID corresponding to its VLAN.
+
+| Port | PVID |
+|---|---:|
+| Port 1 | 1 |
+| Port 2 | 10 |
+| Port 3 | 20 |
+| Port 4 | 30 |
+| Port 5 | 30 |
+| Port 6 | 30 |
+| Port 7 | 40 |
+| Port 8 | 50 |
+
+Correct PVID configuration ensures that untagged traffic entering an access port is assigned to the correct VLAN.
 
 ---
 
@@ -141,40 +165,32 @@ Access ports present their assigned VLAN as untagged traffic to connected endpoi
 
 VLAN 10 is the trusted management network.
 
-It is used to administer infrastructure such as:
+It is used for administrative access to network infrastructure such as:
 
 - OpenWrt
-- NETGEAR managed switch
-- Network infrastructure
-- Administrative systems
+- NETGEAR GS308E
+- Network management systems
+- Administrative workstations
 
-The NETGEAR GS308E management interface was moved to VLAN 10.
-
-The switch management address is:
+The management IP address of the GS308E was moved to:
 
 ```text
 192.168.10.2
 ```
 
-A VLAN 10 client successfully received an address through DHCP and was able to access the Internet and management infrastructure.
+A management workstation successfully received a VLAN 10 DHCP address and was able to reach the gateway, switch management interface, DNS services, and the Internet.
 
 ## VLAN 10 Evidence
 
 ### Connectivity Test
 
-The management workstation successfully obtained VLAN 10 connectivity and could reach the appropriate network resources.
-
 ![VLAN 10 Connectivity Test](screenshots/vlan10-management/06-vlan10-connectivity-test.png)
 
 ### NETGEAR Management VLAN
 
-The GS308E management interface was assigned to VLAN 10 to separate switch administration from less-trusted networks.
-
 ![GS308E Management VLAN](screenshots/vlan10-management/07-gs308e-management-vlan.png)
 
 ### OpenWrt Management Interface
-
-OpenWrt provides the Layer 3 gateway and network services for the Management VLAN.
 
 ![OpenWrt Management Interface](screenshots/vlan10-management/08-openwrt-management-interface.png)
 
@@ -187,35 +203,29 @@ OpenWrt provides the Layer 3 gateway and network services for the Management VLA
 
 VLAN 20 provides a dedicated network for server infrastructure.
 
-Separating servers from user and testing networks reduces unnecessary exposure and provides greater control over traffic entering and leaving the server network.
+Separating servers from user and security-testing networks provides additional control over communication with infrastructure services.
 
 OpenWrt provides:
 
-- VLAN 20 gateway
+- Layer 3 gateway
 - DHCP
 - DNS forwarding
 - Firewall enforcement
 - Internet forwarding
 
-The GS308E assigns Port 3 as the VLAN 20 access port.
+Port 3 of the GS308E is configured as the VLAN 20 access port.
 
 ## VLAN 20 Evidence
 
-### OpenWrt Server Firewall Zone
-
-The Servers firewall zone controls traffic originating from the server network.
+### OpenWrt Servers Firewall Zone
 
 ![VLAN 20 Firewall Zone](screenshots/vlan20-servers/09-openwrt-servers-firewall-zone.png)
 
 ### GS308E Server VLAN
 
-Port 1 carries VLAN 20 as tagged traffic to OpenWrt, while Port 3 operates as the VLAN 20 access port.
-
 ![GS308E VLAN 20](screenshots/vlan20-servers/10-gs308e-servers-vlan.png)
 
 ### Connectivity and Isolation Test
-
-Testing verified VLAN 20 connectivity while also demonstrating the firewall's segmentation policy.
 
 ![VLAN 20 Isolation Test](screenshots/vlan20-servers/11-vlan20-connectivity-isolation-test.png)
 
@@ -226,22 +236,22 @@ Testing verified VLAN 20 connectivity while also demonstrating the firewall's se
 **Network:** `192.168.30.0/24`  
 **Gateway:** `192.168.30.1`
 
-VLAN 30 is the dedicated cybersecurity testing network.
+VLAN 30 provides a dedicated environment for cybersecurity experimentation and testing.
 
-It can be used for:
+Potential systems and workloads include:
 
 - Kali Linux
 - Raspberry Pi security projects
-- Vulnerability testing
+- Vulnerability testing systems
 - Monitoring tools
-- Cybersecurity virtual machines
-- Security experimentation
+- Security virtual machines
+- Network analysis tools
 
-Internet access is permitted while direct forwarding to protected VLAN devices is restricted.
+Internet access is permitted while forwarding to protected internal VLAN endpoints is restricted.
 
-During testing, a Raspberry Pi connected to VLAN 30 successfully received an address from the VLAN 30 DHCP server.
+During testing, a Raspberry Pi successfully received a VLAN 30 DHCP address.
 
-The system could reach:
+Connectivity was verified to:
 
 ```text
 192.168.30.1
@@ -249,25 +259,19 @@ The system could reach:
 google.com
 ```
 
-Attempts to reach devices located on protected VLANs were rejected by OpenWrt.
+Attempts to communicate with protected endpoints on other VLANs were blocked.
 
 ## VLAN 30 Evidence
 
 ### OpenWrt VLAN Configuration
 
-VLAN 30 is tagged across the OpenWrt-to-GS308E trunk.
-
 ![OpenWrt VLAN 30](screenshots/vlan30-cyberlab/12-openwrt-switch-vlan30-configuration.png)
 
 ### CyberLab Firewall Zone
 
-The CyberLab firewall zone permits required Internet access while restricting forwarding to protected internal networks.
-
 ![CyberLab Firewall Zone](screenshots/vlan30-cyberlab/13-cyberlab-firewall-zone.png)
 
 ### Connectivity and Isolation Test
-
-Testing confirmed that CyberLab devices could access required external resources while remaining segmented from protected internal devices.
 
 ![VLAN 30 Isolation Test](screenshots/vlan30-cyberlab/14-vlan30-connectivity-isolation-test.png)
 
@@ -278,20 +282,15 @@ Testing confirmed that CyberLab devices could access required external resources
 **Network:** `192.168.40.0/24`  
 **Gateway:** `192.168.40.1`
 
-VLAN 40 provides a separate network for IoT devices and test systems that should not have unrestricted access to trusted infrastructure.
+VLAN 40 provides a separate network for IoT devices and other test systems.
 
-The network provides:
+These devices can access required Internet resources while remaining separated from protected internal endpoints.
 
-- DHCP
-- DNS
-- Internet access
-- Isolation from protected internal networks
-
-The GS308E assigns Port 7 as an untagged VLAN 40 access port.
+The GS308E uses Port 7 as the VLAN 40 access port.
 
 A Raspberry Pi was used to validate the network.
 
-The Raspberry Pi successfully obtained an address from the VLAN 40 DHCP scope and could access:
+Testing confirmed connectivity to:
 
 ```text
 192.168.40.1
@@ -299,25 +298,19 @@ The Raspberry Pi successfully obtained an address from the VLAN 40 DHCP scope an
 google.com
 ```
 
-Attempts to reach protected devices on other VLANs were blocked by the OpenWrt firewall.
+Attempts to reach protected devices on other VLANs were blocked.
 
 ## VLAN 40 Evidence
 
 ### OpenWrt IoT/Test Firewall Zone
 
-The OpenWrt firewall zone allows VLAN 40 devices to access the Internet while restricting forwarding to protected internal networks.
-
 ![VLAN 40 IoT Firewall Zone](screenshots/vlan40-iot-test/15-vlan40-iot-firewall-zone.png)
 
 ### GS308E VLAN Port Assignment
 
-Port 1 carries VLAN 40 as tagged traffic across the trunk, while Port 7 provides untagged access to VLAN 40 devices.
-
 ![GS308E VLAN 40 Port Assignment](screenshots/vlan40-iot-test/16-gs308e-vlan-port-assignments.png)
 
 ### Connectivity and Isolation Test
-
-Connectivity testing confirmed Internet access while demonstrating isolation from protected internal devices.
 
 ![VLAN 40 Connectivity and Isolation Test](screenshots/vlan40-iot-test/17-vlan40-connectivity-isolation-test.png)
 
@@ -338,9 +331,7 @@ It was designed for:
 - Isolated virtual machines
 - Security experimentation
 
-Unlike the other lab VLANs, VLAN 50 does **not** have forwarding permission to the WAN.
-
-It also does not have forwarding permission to other internal VLANs.
+Unlike the other lab VLANs, VLAN 50 does not have forwarding permission to the WAN or other internal networks.
 
 ```text
 VLAN 50 -> Internet       BLOCKED
@@ -350,13 +341,13 @@ VLAN 50 -> CyberLab       BLOCKED
 VLAN 50 -> IoT/Test       BLOCKED
 ```
 
-The GS308E assigns Port 8 as the VLAN 50 access port.
+The GS308E uses Port 8 as the VLAN 50 access port.
 
 ---
 
 ## VLAN 50 Validation
 
-A Windows forensic/test laptop connected to Port 8 successfully received:
+A Windows forensic/test laptop successfully received:
 
 ```text
 IP Address:     192.168.50.182
@@ -366,7 +357,7 @@ DNS:            192.168.50.1
 DHCP Server:    192.168.50.1
 ```
 
-The laptop successfully reached its local gateway:
+Local gateway connectivity succeeded:
 
 ```text
 ping 192.168.50.1
@@ -382,7 +373,7 @@ ping 8.8.8.8
 Destination port unreachable
 ```
 
-Cross-VLAN access was also tested against a Raspberry Pi located on VLAN 40:
+Cross-VLAN communication was tested against a Raspberry Pi located on VLAN 40:
 
 ```text
 ping 192.168.40.140
@@ -390,25 +381,19 @@ ping 192.168.40.140
 Destination port unreachable
 ```
 
-This demonstrated that OpenWrt was preventing the forensic network from forwarding traffic to devices on other VLANs.
+This confirmed that OpenWrt prevented the forensic network from forwarding traffic to another VLAN endpoint.
 
 ## VLAN 50 Evidence
 
 ### DHCP and Network Configuration
 
-The forensic workstation successfully received an address from the VLAN 50 DHCP scope, confirming correct VLAN tagging, access-port configuration, and DHCP operation.
-
 ![VLAN 50 DHCP Address](screenshots/vlan50-forensics/VLAN50-01-dhcp-address.png)
 
 ### Internet Isolation Test
 
-The forensic workstation could communicate with its local gateway, while attempts to reach external Internet destinations were rejected by OpenWrt.
-
 ![VLAN 50 Internet Isolation Test](screenshots/vlan50-forensics/VLAN50-02-internet-isolation-test.png)
 
 ### Inter-VLAN Isolation Test
-
-Testing against an actual device located on another VLAN confirmed that VLAN 50 could not forward traffic into other internal network segments.
 
 ![VLAN 50 Inter-VLAN Isolation Test](screenshots/vlan50-forensics/VLAN50-03-intervlan-isolation-test.png)
 
@@ -426,104 +411,121 @@ OpenWrt provides independent DHCP services for each VLAN.
 | VLAN 40 | 192.168.40.0/24 | 192.168.40.1 |
 | VLAN 50 | 192.168.50.0/24 | 192.168.50.1 |
 
-This allows each VLAN to operate as an independent Layer 3 network while using OpenWrt as its default gateway.
+Each VLAN therefore operates as an independent broadcast domain with its own IPv4 subnet and DHCP scope.
 
 ---
 
 # Firewall Architecture
 
-OpenWrt firewall zones control communication between network segments.
+OpenWrt firewall zones control traffic between the VLANs and the Internet.
 
-The high-level policy implemented in the lab is:
+The high-level security policy is:
 
-| Source VLAN | Internet | Other VLAN Devices |
+| Source Network | Internet | Other VLAN Endpoints |
 |---|---|---|
-| Management | Allowed | Restricted/administrative |
+| Management | Allowed | Restricted / Administrative |
 | Servers | Allowed | Restricted |
 | CyberLab | Allowed | Blocked |
 | IoT/Test | Allowed | Blocked |
 | Forensics | Blocked | Blocked |
 
-The WAN zone performs NAT/masquerading for networks permitted to access the Internet.
+The WAN zone performs NAT/masquerading for VLANs permitted to access the Internet.
 
-Individual internal VLAN zones do not require masquerading.
+The internal VLAN firewall zones themselves do not require masquerading.
 
 ---
 
-# Understanding OpenWrt Input vs Forwarding
+# Understanding Input vs Forwarding
 
-An important concept demonstrated during testing was the difference between firewall **input** and **forwarding**.
+One important networking concept demonstrated during the project was the difference between **firewall input** and **firewall forwarding**.
 
 ## Input
 
-Input controls traffic sent **to the OpenWrt router itself**.
+Input controls traffic addressed directly to the OpenWrt router.
 
 For example:
 
 ```text
+192.168.10.1
 192.168.20.1
 192.168.30.1
 192.168.40.1
 192.168.50.1
 ```
 
-These addresses belong to OpenWrt.
+These addresses belong to OpenWrt itself.
 
-A client may therefore be able to ping another VLAN's gateway address even when inter-VLAN forwarding is blocked.
+Because of this, a device may be able to ping another VLAN's gateway even when forwarding between those VLANs is blocked.
 
 ## Forwarding
 
-Forwarding controls traffic passing **through OpenWrt from one network to another**.
+Forwarding controls traffic that must travel **through OpenWrt** from one network to another.
 
-For example:
+Example:
 
 ```text
-VLAN 30 Client
-      |
-      v
-   OpenWrt
-      |
-      X
-      |
-VLAN 20 Client
+CyberLab Client
+192.168.30.x
+       |
+       v
+    OpenWrt
+       |
+       X  BLOCKED
+       |
+Server Endpoint
+192.168.20.x
 ```
 
-Testing communication against an actual endpoint on another VLAN therefore provides stronger evidence of network isolation than testing only the router's gateway addresses.
+Testing against an actual endpoint on another VLAN therefore provides stronger evidence of segmentation than testing only the router's gateway interfaces.
 
 ---
 
 # Connectivity Validation
 
-The completed lab was tested against several important requirements.
+The completed environment was tested against several requirements.
 
 ## DHCP
 
-Clients successfully received addresses from the appropriate VLAN DHCP scopes.
+Clients successfully received addresses from their assigned VLAN DHCP scopes.
 
 ## Gateway Connectivity
 
-Clients were able to communicate with the OpenWrt gateway assigned to their VLAN.
+Clients successfully communicated with the OpenWrt gateway assigned to their network.
+
+## DNS
+
+Networks permitted to access the Internet successfully resolved domain names.
+
+Example:
+
+```text
+google.com
+```
 
 ## Internet Connectivity
 
-VLANs requiring Internet access successfully reached external IP addresses and resolved DNS names.
+Networks with WAN forwarding successfully reached external resources.
+
+Example:
+
+```text
+ping 8.8.8.8
+```
 
 ## Inter-VLAN Isolation
 
 Cross-VLAN communication was tested against actual endpoints.
 
-Unauthorized forwarding attempts were rejected by OpenWrt.
-
 Examples:
 
 ```text
-CyberLab -> Server device
+CyberLab -> Server endpoint
 BLOCKED
 
-IoT/Test -> Protected internal device
+IoT/Test -> Protected endpoint
 BLOCKED
 
-Forensics -> IoT/Test device
+Forensics -> IoT/Test endpoint
 BLOCKED
 
 Forensics -> Internet
@@ -536,7 +538,7 @@ BLOCKED
 
 The architecture follows the principle of **network segmentation**.
 
-Instead of placing all devices into one trusted LAN, systems are separated according to their function and risk level.
+Instead of placing every system into a single trusted LAN, devices are separated according to their purpose and risk level.
 
 ```text
 Management
@@ -560,7 +562,7 @@ Forensics
     +---- High-risk / isolated analysis
 ```
 
-This reduces unnecessary communication between systems and limits the ability of an untrusted or compromised endpoint to communicate directly with protected infrastructure.
+Segmentation reduces unnecessary communication between systems and limits the ability of a compromised or untrusted endpoint to communicate directly with protected infrastructure.
 
 ---
 
@@ -568,39 +570,39 @@ This reduces unnecessary communication between systems and limits the ability of
 
 ## Tagged vs Untagged VLANs
 
-The OpenWrt-to-GS308E connection must carry multiple VLANs.
+The OpenWrt-to-GS308E connection needs to carry multiple VLANs.
 
-IEEE 802.1Q tagging allows several VLANs to share the same physical trunk connection.
+IEEE 802.1Q tagging allows multiple logical networks to share the same physical Ethernet connection.
 
-Endpoint access ports remain untagged so connected devices do not need to understand VLAN tagging.
+Endpoint access ports remain untagged so connected devices do not need to support VLAN tagging.
 
 ---
 
 ## Trunk vs Access Ports
 
-A trunk port carries traffic for multiple VLANs.
-
-In this lab:
+The connection between OpenWrt and the GS308E functions as the trunk.
 
 ```text
 OpenWrt
    |
-   |  VLAN 10
-   |  VLAN 20
-   |  VLAN 30
-   |  VLAN 40
-   |  VLAN 50
+   | VLAN 10
+   | VLAN 20
+   | VLAN 30
+   | VLAN 40
+   | VLAN 50
    |
 GS308E Port 1
 ```
 
-Access ports are assigned to individual VLANs for endpoint devices.
+The remaining switch ports operate as access ports for their assigned networks.
 
 ---
 
 ## PVID Configuration
 
-Access ports require the appropriate Port VLAN ID (PVID).
+Correct PVID configuration is essential on access ports.
+
+For example:
 
 ```text
 Port 2 -> PVID 10
@@ -612,13 +614,13 @@ Port 7 -> PVID 40
 Port 8 -> PVID 50
 ```
 
-Incorrect PVID or VLAN membership can result in clients receiving addresses from the wrong network or losing connectivity.
+An incorrect PVID or VLAN membership configuration can cause devices to receive addresses from the wrong network or lose network connectivity entirely.
 
 ---
 
 ## Router Addresses vs Endpoints
 
-Pinging another VLAN's gateway does not necessarily prove that inter-VLAN forwarding is allowed.
+Pinging another VLAN's OpenWrt gateway does not necessarily mean that inter-VLAN forwarding is permitted.
 
 For example:
 
@@ -626,43 +628,43 @@ For example:
 192.168.20.1
 ```
 
-belongs to OpenWrt itself.
+is an address belonging to OpenWrt.
 
-A firewall may permit traffic to the router while still blocking traffic forwarded to an endpoint such as:
+An actual server might instead use:
 
 ```text
 192.168.20.182
 ```
 
-Testing an actual endpoint on another VLAN therefore provides a more accurate validation of firewall forwarding rules.
+Testing the endpoint provides a more accurate validation of the forwarding policy.
 
 ---
 
 ## ICMP Rejection Messages
 
-During blocked connectivity tests, OpenWrt returned messages such as:
+During blocked tests, OpenWrt returned responses such as:
 
 ```text
 Destination port unreachable
 ```
 
-This indicates that OpenWrt actively rejected the forwarding attempt.
+This demonstrates that the router rejected the forwarding attempt.
 
-On Windows, these rejection responses may appear in ping statistics as received packets because the workstation received an ICMP error response from the router.
+Windows may count the ICMP rejection as a received packet because the workstation received an error message from the router.
 
-This does **not** mean the intended destination was reachable.
+This does not mean the intended destination responded.
 
 ---
 
 # Skills Demonstrated
 
-This project demonstrates practical experience with:
+This project demonstrates hands-on experience with:
 
 - OpenWrt administration
+- Managed switching
 - Network segmentation
 - VLAN architecture
 - IEEE 802.1Q
-- Managed switching
 - Tagged VLANs
 - Untagged VLANs
 - Trunk ports
@@ -676,8 +678,8 @@ This project demonstrates practical experience with:
 - Firewall zones
 - Inter-VLAN traffic control
 - Network isolation
+- Connectivity testing
 - Network troubleshooting
-- Connectivity validation
 - Cybersecurity lab architecture
 - Digital-forensics network design
 - Technical documentation
@@ -686,27 +688,30 @@ This project demonstrates practical experience with:
 
 # Future Improvements
 
-Potential future enhancements include:
+The homelab provides a foundation for additional networking and cybersecurity projects.
 
-- Implement explicit firewall allow rules between selected VLANs
-- Further restrict router-management access from untrusted VLANs
-- Add centralized logging and monitoring
+Potential future improvements include:
+
+- Harden management access to OpenWrt
+- Implement explicit firewall allow rules where required
+- Add centralized logging
 - Integrate Wazuh monitoring
 - Integrate a SIEM platform
 - Add IDS/IPS monitoring
 - Deploy additional server VMs
 - Implement DNS filtering
 - Add network traffic analysis
-- Create an isolated malware-analysis VM environment
-- Capture and document firewall logs for blocked inter-VLAN traffic
-- Add a graphical network topology diagram
-- Test additional attack and defense scenarios within the isolated CyberLab
+- Capture firewall logs for blocked traffic
+- Create additional attack-and-defense scenarios
+- Build an isolated malware-analysis VM environment
+- Implement monitoring between security zones
+- Expand the server VLAN with additional infrastructure services
 
 ---
 
 # Project Status
 
-**Core network implementation: Complete**
+**Core Network Implementation: Complete**
 
 - [x] OpenWrt router deployment
 - [x] Managed switch configuration
@@ -723,19 +728,20 @@ Potential future enhancements include:
 - [x] Internet connectivity testing
 - [x] Inter-VLAN isolation testing
 - [x] Forensic network isolation testing
-- [x] GitHub screenshot documentation
-- [x] Technical README documentation
+- [x] Screenshot documentation
+- [x] Network topology diagram
+- [x] GitHub technical documentation
 
 ---
 
 # Summary
 
-This project demonstrates the design and implementation of a multi-VLAN cybersecurity homelab using **OpenWrt** and a **NETGEAR GS308E managed switch**.
+This project demonstrates the design, implementation, troubleshooting, and validation of a segmented cybersecurity homelab using **OpenWrt** and a **NETGEAR GS308E managed switch**.
 
-The final architecture separates management systems, servers, cybersecurity testing systems, IoT/test devices, and forensic systems according to their function and risk level.
+Five VLANs were implemented to separate management systems, servers, cybersecurity testing systems, IoT/test devices, and forensic systems.
 
-OpenWrt provides Layer 3 routing, DHCP, DNS forwarding, Internet connectivity, NAT, and firewall enforcement, while the managed switch provides Layer 2 VLAN segmentation and 802.1Q trunking.
+OpenWrt provides Layer 3 routing, DHCP, DNS forwarding, NAT, Internet connectivity, and firewall enforcement, while the NETGEAR GS308E provides Layer 2 VLAN segmentation and IEEE 802.1Q trunking.
 
-The project provided practical experience designing, configuring, troubleshooting, and validating a segmented network rather than simply deploying individual cybersecurity tools.
+Connectivity and isolation testing verified that the VLANs operate according to their intended security policies, including complete Internet and inter-VLAN isolation for the forensic network.
 
-The completed environment now provides a foundation for continued hands-on work with networking, cybersecurity monitoring, vulnerability testing, digital forensics, incident response, virtualization, and security tooling.
+The completed environment provides a reusable platform for continued hands-on work with networking, cybersecurity monitoring, vulnerability testing, digital forensics, incident response, virtualization, and security tooling.
