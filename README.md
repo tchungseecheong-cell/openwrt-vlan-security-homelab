@@ -95,6 +95,18 @@ Managed Switch
 | VMware ESXi | Virtualized lab infrastructure |
 
 ---
+# Project Documentation
+
+Detailed implementation and configuration documentation is available below:
+
+| Document | Description |
+|---|---|
+| [OpenWrt Network Configuration](configs/openwrt-network.md) | VLAN interfaces, addressing, DHCP, trunking, and WAN configuration |
+| [OpenWrt Firewall Configuration](configs/openwrt-firewall.md) | Firewall zones, forwarding policies, isolation, NAT, and validation |
+| [NETGEAR GS308E VLAN Configuration](configs/gs308e-vlan-config.md) | VLAN membership, trunk/access ports, PVIDs, and switch management |
+| [Complete Setup Guide](docs/setup-guide.md) | Step-by-step guide for reproducing the homelab |
+
+---
 
 # VLAN Architecture
 
