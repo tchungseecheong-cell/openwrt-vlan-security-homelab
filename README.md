@@ -95,6 +95,26 @@ Managed Switch
 | VMware ESXi | Virtualized lab infrastructure |
 
 ---
+
+# Lab Systems
+
+The homelab includes three dedicated systems used for server infrastructure,
+virtualization, and cybersecurity testing.
+
+| Specification | Desktop 1 | Desktop 2 | Desktop 3 |
+|---|---|---|---|
+| **Model** | HP EliteDesk 800 G1 SFF | HP EliteDesk 800 G1 DM | HP Compaq Elite 8300 SFF |
+| **Operating System** | Ubuntu 26.04 LTS | VMware ESXi 8.0.3 | Parrot OS |
+| **CPU** | Intel Core i7-4770 | Intel Core i7-4785T @ 2.20 GHz | Intel Core i5-3470 @ 3.20 GHz |
+| **CPU Generation** | 4th Gen | 4th Gen | 3rd Gen |
+| **Cores / Threads** | 4 / 8 | 4 / 8 | 4 / 4 |
+| **RAM** | 16 GB | 12 GB | 8 GB |
+| **Storage** | 1 TB | 1 TB | 256 GB |
+| **Graphics** | Intel HD Graphics 4600 | Intel HD Graphics 4600 | Intel HD Graphics 2500 |
+| **Primary Lab Role** | Linux Server & Services | VMware Virtualization Host | Cybersecurity Workstation |
+
+
+---
 # Project Documentation
 
 Detailed implementation and configuration documentation is available below:
