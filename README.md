@@ -104,7 +104,7 @@ virtualization, and cybersecurity testing.
 | Specification | Desktop 1 | Desktop 2 | Desktop 3 |
 |---|---|---|---|
 | **Model** | HP EliteDesk 800 G1 SFF | HP EliteDesk 800 G1 DM | HP Compaq Elite 8300 SFF |
-| **Operating System** | Ubuntu 26.04 LTS | VMware ESXi 8.0.3 | Parrot OS |
+| **Operating System** | VMware ESXi 8.0.3 | Proxmox 9.2.21 | Parrot OS |
 | **CPU** | Intel Core i7-4770 | Intel Core i7-4785T @ 2.20 GHz | Intel Core i5-3470 @ 3.20 GHz |
 | **CPU Generation** | 4th Gen | 4th Gen | 3rd Gen |
 | **Cores / Threads** | 4 / 8 | 4 / 8 | 4 / 4 |
